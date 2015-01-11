@@ -11,6 +11,8 @@ class User(db.Model):
     email = db.Column(db.String(120), index=True, unique=True)
     role = db.Column(db.SmallInteger, default=ROLE_USER)
     posts = db.relationship('Post', backref='author', lazy='dynamic')
+    about_me = db.Column(db.String(140))
+    last_seen = db.Column(db.DateTime)
 
     def is_authenticated(self):
         return True
@@ -25,7 +27,7 @@ class User(db.Model):
         return unicode(self.id)
 
     def avatar(self, size):
-        return 'http://www.gravatar.com/avatar/' + md5(self.email).hexdigest() + '?d=mm&s=' + str(size)
+        return 'http://www.gravatar.com/avatar/' + md5(self.email).hexdigest() + '?d=retro&s=' + str(size)
 
     def __repr__(self):
         return '<User %r>' % (self.nickname)

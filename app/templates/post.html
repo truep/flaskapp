@@ -1,5 +1,11 @@
-<table>
-    <tr valign="top">
-        <td><img src="{{post.author.avatar(50)}}"></td><td><i>{{post.author.nickname}} says:</i><br>{{post.body}}</td>
-    </tr>
-</table>
+<div class="container">
+    <div class="row">
+        <div class="col-md-1">
+            <img src="{{ post.author.avatar(50) }}">
+        </div>
+        <div class="col-md-4">
+            <i>{{ post.author.nickname }} says:</i><br>{{ post.body }}
+        </div>
+    </div>
+</div>
+<br/>

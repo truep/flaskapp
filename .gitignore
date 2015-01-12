@@ -1,5 +1,4 @@
 *.pyc
 *.pyo
 .idea
-app.db
-search.db
+*.db

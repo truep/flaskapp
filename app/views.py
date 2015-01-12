@@ -5,8 +5,8 @@ from flask import render_template, flash, redirect, session, url_for, request, g
 from flask_login import login_user, logout_user, current_user, login_required
 
 from app import app, db, lm, oid
-from forms import LoginForm
-from models import User, ROLE_USER, ROLE_ADMIN
+from forms import LoginForm, EditForm
+from models import User, ROLE_USER
 
 
 @lm.user_loader
@@ -67,6 +67,7 @@ def after_login(resp):
         nickname = resp.nickname
         if nickname is None or nickname == "":
             nickname = resp.email.split('@')[0]
+        nickname = User.make_unique_nickname(nickname)
         user = User(nickname=nickname, email=resp.email, role=ROLE_USER)
         db.session.add(user)
         db.session.commit()
@@ -89,7 +90,7 @@ def logout():
 def user(nickname):
     user = User.query.filter_by(nickname=nickname).first()
     if user == None:
-        flash(u'Пользователь' + nickname + u'не найден')
+        flash(u'Пользователь ' + nickname + u' не найден')
         return redirect(url_for('index'))
 
     posts = [
@@ -99,3 +100,36 @@ def user(nickname):
     return render_template('user.html',
                            user=user,
                            posts=posts)
+
+
+@app.route('/edit', methods=['GET', 'POST'])
+@login_required
+def edit():
+    form = EditForm(g.user.nickname)
+    if form.validate_on_submit():
+        g.user.nickname = form.nickname.data
+        g.user.about_me = form.about_me.data
+        db.session.add(g.user)
+        db.session.commit()
+        flash(u'Изменения были сохранены.')
+        return redirect(url_for('edit'))
+    else:
+        form.nickname.data = g.user.nickname
+        form.about_me.data = g.user.about_me
+    return render_template('edit.html',
+                           form=form)
+
+
+# ERRORS
+
+@app.errorhandler(404)
+def not_found_error(error):
+    return render_template('errors/404.html'), 404
+
+
+@app.errorhandler(500)
+def internal_error(error):
+    db.session.rollback()
+    return render_template('errors/500.html'), 500
+
+

@@ -2,11 +2,14 @@
 # -*- coding: utf-8 -*-
 # скрипт, который создает базу данных
 
+import os.path
+
 from migrate.versioning import api
+
 from config import SQLALCHEMY_DATABASE_URI
 from config import SQLALCHEMY_MIGRATE_REPO
 from app import db
-import os.path
+
 
 db.create_all()
 if not os.path.exists(SQLALCHEMY_MIGRATE_REPO):

@@ -12,6 +12,8 @@ OPENID_PROVIDERS = [
     {'name': 'MyOpenID', 'url': 'https://www.myopenid.com'},
 ]
 
+# Пагинация
+POSTS_PER_PAGE = 3
 # SQL-Alchemy
 basedir = os.path.abspath(os.path.dirname(__file__))
 # путь к файлу с нашей базой данных

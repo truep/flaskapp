@@ -5,8 +5,9 @@ from flask import render_template, flash, redirect, session, url_for, request, g
 from flask_login import login_user, logout_user, current_user, login_required
 
 from app import app, db, lm, oid
-from forms import LoginForm, EditForm
-from models import User, ROLE_USER
+from forms import LoginForm, EditForm, PostForm
+from models import User, ROLE_USER, Post
+from config import POSTS_PER_PAGE
 
 
 @lm.user_loader
@@ -24,22 +25,20 @@ def before_request():
         db.session.commit()
 
 
-@app.route('/')
-@app.route('/index')
+@app.route('/', methods=['GET', 'POST'])
+@app.route('/index', methods=['GET', 'POST'])
+@app.route('/index/<int:page>', methods=['GET', 'POST'])
 @login_required
-def index():
-    user = g.user
-    posts = [
-        {
-            'author': {'nickname': 'selezian'},
-            'body': 'Beautiful day in Portland!'
-        },
-        {
-            'author': {'nickname': 'iglov'},
-            'body': 'The Avengers movie was so cool!'
-        }
-    ]
-    return render_template("index.html", title='Home', user=user, posts=posts)
+def index(page=1):
+    form = PostForm()
+    if form.validate_on_submit():
+        post = Post(body=form.post.data, timestamp=datetime.utcnow(), author=g.user)
+        db.session.add(post)
+        db.session.commit()
+        flash(u'Твой пост, он живой!!!')
+        return redirect(url_for('index'))
+    posts = g.user.followed_posts().paginate(page, POSTS_PER_PAGE, False)
+    return render_template("index.html", title='Home', form=form, posts=posts)
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -61,7 +60,7 @@ def login():
 def after_login(resp):
     if resp.email is None or resp.email == "":
         flash('Invalid login. Please try again.')
-        return redirect(url_for('login'))
+        redirect(url_for('login'))
     user = User.query.filter_by(email=resp.email).first()
     if user is None:
         nickname = resp.nickname
@@ -70,6 +69,8 @@ def after_login(resp):
         nickname = User.make_unique_nickname(nickname)
         user = User(nickname=nickname, email=resp.email, role=ROLE_USER)
         db.session.add(user)
+        db.session.commit()
+        db.session.add(user.follow(user))
         db.session.commit()
     remember_me = False
     if 'remember_me' in session:
@@ -86,17 +87,14 @@ def logout():
 
 
 @app.route('/user/<nickname>')
+@app.route('/user/<nickname>/<int:page>')
 @login_required
-def user(nickname):
+def user(nickname, page=1):
     user = User.query.filter_by(nickname=nickname).first()
-    if user == None:
-        flash(u'Пользователь ' + nickname + u' не найден')
+    if user is None:
+        flash(u'Пользователь ' + nickname + u' не найден.')
         return redirect(url_for('index'))
-
-    posts = [
-        {'author': user, 'body': u'Первый тестовый пост'},
-        {'author': user, 'body': u'Второй тестовый пост'},
-    ]
+    posts = user.posts.paginate(page, POSTS_PER_PAGE, False)
     return render_template('user.html',
                            user=user,
                            posts=posts)
@@ -113,11 +111,51 @@ def edit():
         db.session.commit()
         flash(u'Изменения были сохранены.')
         return redirect(url_for('edit'))
-    else:
+    elif request.method != "POST":
         form.nickname.data = g.user.nickname
         form.about_me.data = g.user.about_me
     return render_template('edit.html',
                            form=form)
+
+
+@app.route('/follow/<nickname>')
+@login_required
+def follow(nickname):
+    user = User.query.filter_by(nickname=nickname).first()
+    if user is None:
+        flash(u'Пользователь ' + nickname + u' не найден.')
+        return redirect(url_for('index'))
+    if user == g.user:
+        flash(u'Вы не можете подписаться на самого себя!')
+        return redirect(url_for('user', nickname=nickname))
+    u = g.user.follow(user)
+    if u is None:
+        flash(u'Невозможно подписаться ' + nickname + u'.')
+        return redirect(url_for('user', nickname=nickname))
+    db.session.add(u)
+    db.session.commit()
+    flash(u'Вы подписаны на ' + nickname + u'!')
+    return redirect(url_for('user', nickname=nickname))
+
+
+@app.route('/unfollow/<nickname>')
+@login_required
+def unfollow(nickname):
+    user = User.query.filter_by(nickname=nickname).first()
+    if user is None:
+        flash(u'Пользователь ' + nickname + u' не найден.')
+        return redirect(url_for('index'))
+    if user == g.user:
+        flash(u'Вы не можете отписаться на самого себя!')
+        return redirect(url_for('user', nickname=nickname))
+    u = g.user.unfollow(user)
+    if u is None:
+        flash(u'Невозможно отписаться ' + nickname + u'.')
+        return redirect(url_for('user', nickname=nickname))
+    db.session.add(u)
+    db.session.commit()
+    flash(u'Вы отписались ' + nickname + u'.')
+    return redirect(url_for('user', nickname=nickname))
 
 
 # ERRORS

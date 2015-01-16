@@ -25,7 +25,11 @@ class EditForm(Form):
         if self.nickname.data == self.original_nickname:
             return True
         user = User.query.filter_by(nickname=self.nickname.data).first()
-        if user != None:
+        if user is not None:
             self.nickname.errors.append(u'Это имя уже используется. Пожалуйста, используйте другое.')
             return False
-        return False
+        return True
+
+
+class PostForm(Form):
+    post = StringField('post', validators=[DataRequired()])
